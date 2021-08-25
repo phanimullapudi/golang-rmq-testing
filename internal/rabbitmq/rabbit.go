@@ -8,20 +8,56 @@ import (
 
 type Service interface {
 	Connect() error
+	Publish(message string) error
 }
 
 type RabbitMQ struct {
-	Conn *amqp.Connection
+	Conn    *amqp.Connection
+	Channel *amqp.Channel
 }
 
-func (rmq *RabbitMQ) Connect() error {
+func (r *RabbitMQ) Connect() error {
 	fmt.Println("Connecting to RMQ....")
 	var err error
-	rmq.Conn, err = amqp.Dial("amqp://guest:guest@localhost:5672/")
+	r.Conn, err = amqp.Dial("amqp://guest:guest@localhost:5672/")
 	if err != nil {
 		return err
 	}
 
+	r.Channel, err = r.Conn.Channel()
+	if err != nil {
+		return err
+	}
+
+	_, err = r.Channel.QueueDeclare(
+		"TestQueue",
+		false,
+		false,
+		false,
+		false,
+		nil,
+	)
+
+	return nil
+}
+
+func (r *RabbitMQ) Publish(message string) error {
+	err := r.Channel.Publish(
+		"",
+		"TestQueue",
+		false,
+		false,
+		amqp.Publishing{
+			ContentType: "text/plain",
+			Body:        []byte(message),
+		},
+	)
+
+	if err != nil {
+		return err
+	}
+
+	fmt.Println("Message Published")
 	return nil
 }
 
